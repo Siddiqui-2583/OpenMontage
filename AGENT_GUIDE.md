@@ -54,6 +54,8 @@ When the user says **"process inbox/<name>"**, drops footage in `inbox/`, or ask
 **Read:** `skills/custom/my-workflow.md` (and `skills/custom/youtube-transcript.md` for transcripts).
 It runs the `talking-head` pipeline under Rule Zero below, so all pipeline/checkpoint rules still apply.
 
+For **software demo / product launch videos** ("make a demo video for <project or URL>"): read `skills/custom/launch-video.md` first.
+
 ## Rule Zero — All Production Goes Through a Pipeline
 
 **Every video production request MUST go through the pipeline system. No exceptions.**

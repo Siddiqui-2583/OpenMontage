@@ -27,6 +27,7 @@ import { MotionGraphic } from "./components/MotionGraphic";
 import { ScreenPanel, SPLIT_TOP } from "./components/ScreenPanel";
 import { GlassCard } from "./components/GlassCard";
 import { BehindWord } from "./components/BehindWord";
+import { StyledCaptions } from "./components/StyledCaptions";
 import { loadFont as loadHindSiliguri } from "@remotion/google-fonts/HindSiliguri";
 
 const { fontFamily: HIND_SILIGURI } = loadHindSiliguri("normal", { weights: ["600", "700"], subsets: ["bengali", "latin"] });
@@ -364,6 +365,11 @@ export interface TalkingHeadProps {
   captionStrokeWidth?: number;
   // Transparent WebM of the speaker (scripts/my_workflow/person_matte.py); needed for `behind_word` overlays.
   cutoutSrc?: string;
+  // Animated caption style from the vendored engine: editorial-highlight | pop-sticker | paper-plane | smoke-exit |
+  // explosive-breakup | rolodex-flip | retro-typer. When set it replaces the default CaptionOverlay.
+  captionStyle?: string;
+  captionY?: number; // % from top (styled captions only)
+  captionScale?: number;
 }
 
 export const TalkingHead: React.FC<TalkingHeadProps> = ({
@@ -380,6 +386,9 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
   captionBottomOffset,
   captionStrokeWidth,
   cutoutSrc,
+  captionStyle,
+  captionY,
+  captionScale,
 }) => {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
@@ -455,6 +464,9 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
       })}
 
       {/* Layer 3: Captions (topmost — always visible above overlays) */}
+      {captionStyle ? (
+        <StyledCaptions words={captions} style={captionStyle} highlight={highlightColor} y={captionY} size={captionScale} maxWords={wordsPerPage} />
+      ) : (
       <CaptionOverlay
         words={captions}
         wordsPerPage={wordsPerPage}
@@ -467,6 +479,7 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
         {...(captionStrokeWidth !== undefined ? { strokeWidth: captionStrokeWidth } : {})}
         {...(captionWordSeparator !== undefined ? { wordSeparator: captionWordSeparator } : {})}
       />
+      )}
     </AbsoluteFill>
   );
 };

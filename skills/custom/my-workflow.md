@@ -46,6 +46,17 @@ Cut mindfully: remove repeated/false-start lines (find them from timestamps + si
   there; keep Bangla text in Hind Siliguri. Overlay types: motion_graphic, image_card, logo_pop,
   hero_title (see `TalkingHead.tsx`).
 
+### 4b. Free public-domain b-roll (`broll_find.py`)
+```bash
+.venv-matte/bin/python scripts/my_workflow/broll_find.py search "people typing on old computers"
+.venv-matte/bin/python scripts/my_workflow/broll_find.py inspect OnGuard1956 --out-dir /tmp/bk    # scenes + keyframe JPGs: LOOK at them
+.venv-matte/bin/python scripts/my_workflow/broll_find.py extract OnGuard1956 120 6 --project <name> --label "mainframe room"
+```
+Internet Archive public-domain film via broll-mcp (MIT, pinned commit). `extract` copies the clip and its provenance JSON into
+`projects/<name>/assets/stock/` and appends `stock_credits.json` (title, creator, licence, commercial_use, sha256) for the asset manifest.
+Limits: mostly 1930s-70s, 4:3, ~480p; great for retro/period b-roll, wrong for modern UI or people. Check `commercial_use=allowed`
+before client work. First extract of a film takes ~2 min (scene detection + download), cached afterwards. archive.org only, polite rate limits.
+
 ## 5. Edit + compose
 Copy `scripts/my_workflow/build_template.py` to `projects/<name>/scripts/build.py` and adapt. It
 writes `remotion-composer/public/demo-props/<name>.json` and media under `public/<name>/`. Render:
@@ -75,6 +86,14 @@ loudnorm) as in `build_template.py`, then run 5b. Frame-accurate cuts (1/fps); r
 Scores every cut for audio pops (flag = jump > 0.15 FS AND > 8x typical; the ratio alone is noisy at word endings) and writes
 filmstrip+waveform PNGs (`timeline_view.py`, from browser-use/video-use, MIT). Look at the PNGs of flagged cuts and a few others.
 Segments are faded 30 ms at every boundary in `build_template.py` (a pop-free default).
+
+### 9c. Animated caption styles (`captionStyle`)
+Props: `"captionStyle": "pop-sticker"` (also `editorial-highlight`, `rolodex-flip`, `retro-typer`, `paper-plane`, `explosive-breakup`, `smoke-exit`),
+optional `captionY` (% from top, default 78), `captionScale`, `wordsPerPage` (= max words per line, default 3), `highlightColor`.
+It replaces the default `CaptionOverlay`. Engine: vendored `src/vendor/captions.js` (claude-caption-styles, MIT; patched for Bangla fonts and a
+last-word crash). One key word per line (the longest) gets the highlight colour. Tested with Bangla: pop-sticker, editorial-highlight, rolodex-flip,
+retro-typer look good; **smoke-exit draws dotted rings around Bangla letters, avoid**. White text on a white kurta is weak for rolodex/retro/smoke:
+prefer pop-sticker or editorial-highlight (colour blocks) on light outfits. Not yet combined with `screen_split` seam positioning.
 
 ## 6. Thumbnail (Codex)
 Grab a clean frame of the speaker (`ffmpeg -ss <t> -i edited.mp4 -frames:v 1 speaker.png`), then
