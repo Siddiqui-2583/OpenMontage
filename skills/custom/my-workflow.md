@@ -58,6 +58,15 @@ stroke on white backgrounds, bottom offset ~260.
 QA: render stills (`npx remotion still ... --frame=N`) at every overlay, look at them, then
 ffprobe duration/size and loudness check. Report caption-timing limits honestly.
 
+### 5a. Silence-trim segment list (auto-editor)
+```bash
+.venv-matte/bin/python scripts/my_workflow/auto_cuts.py projects/<name>/assets/video/source.mp4 \
+    -o projects/<name>/assets/cut_segments.json --cut-out 120.313-126.447     # forced cuts for repeats (seconds)
+```
+Replaces hand-rolled silence math: same `cut_segments.json` format (seconds, source timeline), 7 s for a 2.4 min video.
+On pen-and-paper it kept a strict subset of our old trimmer's ranges (97% overlap). Render the cuts with ffmpeg (30 ms fades +
+loudnorm) as in `build_template.py`, then run 5b. Frame-accurate cuts (1/fps); repeats/false starts still need `--cut-out`.
+
 ### 5b. Cut QA (before presenting)
 ```bash
 .venv-matte/bin/python scripts/my_workflow/cut_qa.py projects/<name>/assets/video/edited.mp4 \
