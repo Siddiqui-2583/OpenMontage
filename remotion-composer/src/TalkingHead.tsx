@@ -19,6 +19,13 @@ import { KPIGrid } from "./components/charts/KPIGrid";
 import { HeroTitle } from "./components/HeroTitle";
 import { SectionTitle } from "./components/SectionTitle";
 import { StatReveal } from "./components/StatReveal";
+import { LogoPop } from "./components/LogoPop";
+import { RepoCard } from "./components/RepoCard";
+import { ImageCard } from "./components/ImageCard";
+import { MotionGraphic } from "./components/MotionGraphic";
+import { loadFont as loadHindSiliguri } from "@remotion/google-fonts/HindSiliguri";
+
+const { fontFamily: HIND_SILIGURI } = loadHindSiliguri("normal", { weights: ["600", "700"], subsets: ["bengali", "latin"] });
 
 // ---------------------------------------------------------------------------
 // Overlay types for talking-head video
@@ -32,6 +39,7 @@ export interface TalkingHeadOverlay {
   position?:
     | "lower_third"
     | "upper_third"
+    | "top_banner"
     | "left_panel"
     | "right_panel"
     | "full_overlay";
@@ -45,6 +53,10 @@ export interface TalkingHeadOverlay {
   rightLabel?: string;
   leftValue?: string;
   rightValue?: string;
+  logos?: string[];
+  image?: string;
+  url?: string;
+  kind?: string;
   chartData?: any[];
   chartSeries?: any[];
   chartColors?: string[];
@@ -82,6 +94,13 @@ const POSITION_STYLES: Record<string, React.CSSProperties> = {
     left: 40,
     right: 40,
     height: 480,
+  },
+  top_banner: {
+    position: "absolute",
+    top: 50,
+    left: 40,
+    right: 40,
+    height: 340,
   },
   left_panel: {
     position: "absolute",
@@ -218,6 +237,24 @@ const OverlayContent: React.FC<{ overlay: TalkingHeadOverlay }> = ({
       />
     );
   }
+  if (overlay.type === "motion_graphic" && overlay.kind) {
+    return <MotionGraphic kind={overlay.kind} />;
+  }
+  if (overlay.type === "image_card" && overlay.image) {
+    return <ImageCard image={overlay.image} caption={overlay.text} />;
+  }
+  if (overlay.type === "repo_card" && overlay.image && overlay.url) {
+    return <RepoCard image={overlay.image} url={overlay.url} />;
+  }
+  if (overlay.type === "logo_pop" && (overlay.logos?.length || overlay.text)) {
+    return (
+      <LogoPop
+        logos={overlay.logos ?? []}
+        label={overlay.text}
+        sublabel={overlay.subtitle}
+      />
+    );
+  }
   if (overlay.type === "hero_title" && overlay.text) {
     return <HeroTitle title={overlay.text} subtitle={overlay.subtitle} />;
   }
@@ -278,12 +315,12 @@ const PositionedOverlay: React.FC<{ overlay: TalkingHeadOverlay }> = ({
         opacity,
         overflow: "hidden",
         borderRadius: isFullOverlay ? 0 : 16,
-        boxShadow: isFullOverlay
+        boxShadow: isFullOverlay || overlay.type === "logo_pop" || overlay.type === "repo_card" || overlay.type === "motion_graphic" || overlay.type === "image_card"
           ? "none"
           : "0 8px 32px rgba(0, 0, 0, 0.4)",
       }}
     >
-      {isFullOverlay && (
+      {isFullOverlay && overlay.type !== "repo_card" && overlay.type !== "motion_graphic" && overlay.type !== "image_card" && (
         <AbsoluteFill style={{ background: "rgba(0, 0, 0, 0.7)" }} />
       )}
       <OverlayContent overlay={overlay} />
@@ -308,6 +345,8 @@ export interface TalkingHeadProps {
   captionFontFamily?: string;
   // Pass "" for CJK captions (no inter-word spacing); defaults to " ".
   captionWordSeparator?: string;
+  captionBottomOffset?: number;
+  captionStrokeWidth?: number;
 }
 
 export const TalkingHead: React.FC<TalkingHeadProps> = ({
@@ -321,16 +360,44 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
   captionBackgroundColor = "rgba(0, 0, 0, 0.65)",
   captionFontFamily,
   captionWordSeparator,
+  captionBottomOffset,
+  captionStrokeWidth,
 }) => {
   const { fps } = useVideoConfig();
+  const frame = useCurrentFrame();
+
+  // "Dock": while an image_card / motion_graphic is up, slide the speaker down
+  // so the graphic gets its own clear area above the head (nothing is cropped
+  // or covered). 0 = normal framing, 1 = fully docked.
+  const RAMP = 10;
+  let dock = 0;
+  for (const o of overlays ?? []) {
+    if (o.type !== "image_card" && o.type !== "motion_graphic") continue;
+    const a = Math.round(o.in_seconds * fps);
+    const b = Math.round(o.out_seconds * fps);
+    const d = interpolate(frame, [a, a + RAMP, b - RAMP, b], [0, 1, 1, 0], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    dock = Math.max(dock, d);
+  }
+  const eased = dock * dock * (3 - 2 * dock);
+  const DOCK_SHIFT = 380;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#000" }}>
-      {/* Layer 1: Video background */}
-      <OffthreadVideo
-        src={resolveAsset(videoSrc)}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-      />
+    <AbsoluteFill style={{ backgroundColor: "#D8D6D8" }}>
+      {/* Layer 1: Video background (shifted down while docked) */}
+      <AbsoluteFill
+        style={{
+          transform: `translateY(${eased * DOCK_SHIFT}px)`,
+          WebkitMaskImage: `linear-gradient(to bottom, transparent 0px, #000 ${Math.round(eased * 140)}px)`,
+        }}
+      >
+        <OffthreadVideo
+          src={resolveAsset(videoSrc)}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      </AbsoluteFill>
 
       {/* Layer 2: Overlays (charts, stats, callouts, etc.) */}
       {overlays?.map((overlay, i) => {
@@ -357,7 +424,9 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
         highlightColor={highlightColor}
         backgroundColor={captionBackgroundColor}
         color={captionColor}
-        {...(captionFontFamily ? { fontFamily: captionFontFamily } : {})}
+        {...(captionFontFamily ? { fontFamily: captionFontFamily === "hind-siliguri" ? HIND_SILIGURI : captionFontFamily } : {})}
+        {...(captionBottomOffset !== undefined ? { bottomOffset: captionBottomOffset } : {})}
+        {...(captionStrokeWidth !== undefined ? { strokeWidth: captionStrokeWidth } : {})}
         {...(captionWordSeparator !== undefined ? { wordSeparator: captionWordSeparator } : {})}
       />
     </AbsoluteFill>

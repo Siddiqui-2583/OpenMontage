@@ -46,6 +46,14 @@ This is a first-class workflow in OpenMontage.
 
 If a model misses this distinction, it will often fall back to plain search + guesswork. That is incorrect for OpenMontage.
 
+## Custom Workflow Entry Point (this fork)
+
+When the user says **"process inbox/<name>"**, drops footage in `inbox/`, or asks for the
+"drop raw video -> finished video + thumbnail + caption" flow:
+
+**Read:** `skills/custom/my-workflow.md` (and `skills/custom/youtube-transcript.md` for transcripts).
+It runs the `talking-head` pipeline under Rule Zero below, so all pipeline/checkpoint rules still apply.
+
 ## Rule Zero — All Production Goes Through a Pipeline
 
 **Every video production request MUST go through the pipeline system. No exceptions.**

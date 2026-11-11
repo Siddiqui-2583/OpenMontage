@@ -104,3 +104,7 @@ venv/
 
 # Local Wan / diffusers GPU environment
 .venv-wan/
+
+# Personal workflow inbox (media is private + large)
+inbox/*
+!inbox/README.md

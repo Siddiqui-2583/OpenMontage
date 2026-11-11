@@ -179,6 +179,10 @@ export const Root: React.FC = () => {
         id="TalkingHead"
         component={TalkingHead}
         durationInFrames={30 * 300}
+        calculateMetadata={({ props }) => ({
+          durationInFrames:
+            (props as { durationInFrames?: number }).durationInFrames ?? 30 * 300,
+        })}
         fps={30}
         width={1080}
         height={1920}

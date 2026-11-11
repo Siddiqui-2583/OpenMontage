@@ -38,7 +38,11 @@ export const HeroTitle: React.FC<HeroTitleProps> = ({
   const { fps } = useVideoConfig();
 
   // Staggered letter-by-letter spring
-  const titleChars = title.split("");
+  // Grapheme-aware split so combining marks (Bangla vowel signs, conjuncts) stay attached.
+  const titleChars: string[] =
+    typeof Intl !== "undefined" && (Intl as any).Segmenter
+      ? Array.from(new (Intl as any).Segmenter(undefined, { granularity: "grapheme" }).segment(title), (x: any) => x.segment as string)
+      : title.split("");
 
   return (
     <AbsoluteFill

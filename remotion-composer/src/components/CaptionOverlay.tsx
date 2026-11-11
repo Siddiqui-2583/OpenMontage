@@ -30,6 +30,10 @@ type CaptionOverlayProps = {
   // Separator rendered between words. Space-delimited languages want the
   // default " "; CJK languages (no inter-word spacing) should pass "".
   wordSeparator?: string;
+  // Optional styling (defaults keep previous look)
+  bottomOffset?: number;
+  strokeWidth?: number;
+  fontWeight?: number;
 };
 
 interface CaptionPage {
@@ -66,7 +70,10 @@ const PageRenderer: React.FC<{
   backgroundColor: string;
   fontFamily: string;
   wordSeparator: string;
-}> = ({ page, fontSize, color, highlightColor, backgroundColor, fontFamily, wordSeparator }) => {
+  bottomOffset: number;
+  strokeWidth: number;
+  fontWeight: number;
+}> = ({ page, fontSize, color, highlightColor, backgroundColor, fontFamily, wordSeparator, bottomOffset, strokeWidth, fontWeight }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -84,7 +91,7 @@ const PageRenderer: React.FC<{
       style={{
         justifyContent: "flex-end",
         alignItems: "center",
-        paddingBottom: 80,
+        paddingBottom: bottomOffset,
       }}
     >
       <div
@@ -101,8 +108,9 @@ const PageRenderer: React.FC<{
         <span
           style={{
             fontSize,
-            fontWeight: 700,
+            fontWeight,
             fontFamily,
+            ...(strokeWidth > 0 ? { WebkitTextStroke: `${strokeWidth}px #000`, paintOrder: "stroke fill" } : {}),
             lineHeight: 1.4,
             whiteSpace: "pre-wrap",
           }}
@@ -147,6 +155,9 @@ export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({
   backgroundColor = "rgba(15, 23, 42, 0.75)",
   fontFamily = "Space Grotesk, Inter, system-ui, sans-serif",
   wordSeparator = " ",
+  bottomOffset = 80,
+  strokeWidth = 0,
+  fontWeight = 700,
 }) => {
   const { fps } = useVideoConfig();
   const pages = buildPages(words, wordsPerPage);
@@ -171,6 +182,9 @@ export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({
               backgroundColor={backgroundColor}
               fontFamily={fontFamily}
               wordSeparator={wordSeparator}
+              bottomOffset={bottomOffset}
+              strokeWidth={strokeWidth}
+              fontWeight={fontWeight}
             />
           </Sequence>
         );
