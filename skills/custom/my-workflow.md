@@ -74,3 +74,36 @@ Only claims the speaker actually made. Language = the video's language.
 `python3 scripts/my_workflow/deliver.py <name> --video <final.mp4> --thumbnail <png> --caption <md> --transcript <txt>`
 Final message: the printed folder path, file specs, and honest caveats. Publishing/upload to social
 platforms is a separate gated step: offer, don't do.
+
+## 9. Demo template (software demo / product explainer reels)
+Pattern reverse-engineered with rea-video from two reference reels (talker + real screen on top,
+glass cards, dim-to-focus, one-word seam captions, "comment X for the link" ending). All of it is
+overlay-driven in `remotion-composer/src/TalkingHead.tsx`; put these in the props JSON `overlays`
+(seconds on the FINAL timeline, `position: "full_overlay"`):
+
+| type | effect | fields |
+|---|---|---|
+| `screen_split` | Screen on top (y 36..996), speaker clipped into the bottom region, captions move to the seam | `image` (png/jpg/mp4/mov in `public/`), `text` (chip e.g. `localhost:3010`), `fit` cover/contain, `focus {x,y,scale}` = slow zoom to a region |
+| `glass_card` | Frosted card above the head; speaker docks down | `title`, `text`, or `items[]` (checklist ticks in), `accentColor` |
+| `dim` | Speaker darkens to ~35% so the caption word reads | none |
+| `image_card`, `motion_graphic` | as in section 5 | |
+
+Recommended props: `wordsPerPage: 1`, `fontSize: 84`, `captionBackgroundColor: "rgba(8,8,12,0.78)"`,
+`captionStrokeWidth: 0` (pill style). Screen recordings: record 1020x960-ish crops or any 16:9 clip and
+use `fit: "cover"` plus a `focus` zoom on the UI area being discussed; keep each split 5-8 s, cut to a
+different screen every ~3-5 s, add a `dim` beat before each "reveal" word, end with a `glass_card`
+CTA ("Want the link? Comment ..."). Layout constants: `SPLIT_TOP = 1020` in `components/ScreenPanel.tsx`.
+Reference breakdowns live outside the repo (rea-video output); copy structure, never wording or likeness.
+
+### 9b. Words behind the speaker (`behind_word`)
+Needs a person cut-out of the speaker video (the same file as `videoSrc`):
+```bash
+bash scripts/my_workflow/setup_matte.sh          # once: .venv-matte (Python 3.10-3.12, MediaPipe)
+.venv-matte/bin/python scripts/my_workflow/person_matte.py projects/<name>/assets/video/edited.mp4 \
+    remotion-composer/public/<name>/cutout.webm --ranges 12-16,40-44     # only the windows you need
+```
+Then in props: `"cutoutSrc": "<name>/cutout.webm"` and overlays like
+`{"type":"behind_word","in_seconds":12.5,"out_seconds":15.5,"text":"খাতা-কলম","color":"#16264a","y":120}`.
+The word drops in behind the head and the cut-out is drawn over it. Use a DARK colour on a light wall.
+Bangla works (Hind Siliguri); font auto-fits ~92% of the width. Speed: about real time (12 s clip = 12 s).
+Always check stills with fast hand/head movement: mask edges can flicker. Credit: `scripts/my_workflow/models/NOTICE.md`.

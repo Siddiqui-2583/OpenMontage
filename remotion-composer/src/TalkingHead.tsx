@@ -1,6 +1,7 @@
 import {
   AbsoluteFill,
   OffthreadVideo,
+  interpolateColors,
   Sequence,
   interpolate,
   useCurrentFrame,
@@ -23,6 +24,9 @@ import { LogoPop } from "./components/LogoPop";
 import { RepoCard } from "./components/RepoCard";
 import { ImageCard } from "./components/ImageCard";
 import { MotionGraphic } from "./components/MotionGraphic";
+import { ScreenPanel, SPLIT_TOP } from "./components/ScreenPanel";
+import { GlassCard } from "./components/GlassCard";
+import { BehindWord } from "./components/BehindWord";
 import { loadFont as loadHindSiliguri } from "@remotion/google-fonts/HindSiliguri";
 
 const { fontFamily: HIND_SILIGURI } = loadHindSiliguri("normal", { weights: ["600", "700"], subsets: ["bengali", "latin"] });
@@ -57,6 +61,10 @@ export interface TalkingHeadOverlay {
   image?: string;
   url?: string;
   kind?: string;
+  y?: number;
+  items?: string[];
+  focus?: { x: number; y: number; scale?: number };
+  fit?: "cover" | "contain";
   chartData?: any[];
   chartSeries?: any[];
   chartColors?: string[];
@@ -240,6 +248,13 @@ const OverlayContent: React.FC<{ overlay: TalkingHeadOverlay }> = ({
   if (overlay.type === "motion_graphic" && overlay.kind) {
     return <MotionGraphic kind={overlay.kind} />;
   }
+  if (overlay.type === "screen_split" && overlay.image) {
+    return <ScreenPanel src={overlay.image} fit={overlay.fit} focus={overlay.focus} label={overlay.text} />;
+  }
+  if (overlay.type === "glass_card" && (overlay.text || overlay.items?.length)) {
+    return <GlassCard title={overlay.title} text={overlay.text} items={overlay.items} accent={overlay.accentColor} />;
+  }
+  if (overlay.type === "dim") return null;
   if (overlay.type === "image_card" && overlay.image) {
     return <ImageCard image={overlay.image} caption={overlay.text} />;
   }
@@ -315,12 +330,12 @@ const PositionedOverlay: React.FC<{ overlay: TalkingHeadOverlay }> = ({
         opacity,
         overflow: "hidden",
         borderRadius: isFullOverlay ? 0 : 16,
-        boxShadow: isFullOverlay || overlay.type === "logo_pop" || overlay.type === "repo_card" || overlay.type === "motion_graphic" || overlay.type === "image_card"
+        boxShadow: isFullOverlay || overlay.type === "logo_pop" || overlay.type === "repo_card" || overlay.type === "motion_graphic" || overlay.type === "image_card" || overlay.type === "screen_split" || overlay.type === "glass_card"
           ? "none"
           : "0 8px 32px rgba(0, 0, 0, 0.4)",
       }}
     >
-      {isFullOverlay && overlay.type !== "repo_card" && overlay.type !== "motion_graphic" && overlay.type !== "image_card" && (
+      {isFullOverlay && overlay.type !== "repo_card" && overlay.type !== "motion_graphic" && overlay.type !== "image_card" && overlay.type !== "screen_split" && overlay.type !== "glass_card" && overlay.type !== "dim" && (
         <AbsoluteFill style={{ background: "rgba(0, 0, 0, 0.7)" }} />
       )}
       <OverlayContent overlay={overlay} />
@@ -347,6 +362,8 @@ export interface TalkingHeadProps {
   captionWordSeparator?: string;
   captionBottomOffset?: number;
   captionStrokeWidth?: number;
+  // Transparent WebM of the speaker (scripts/my_workflow/person_matte.py); needed for `behind_word` overlays.
+  cutoutSrc?: string;
 }
 
 export const TalkingHead: React.FC<TalkingHeadProps> = ({
@@ -362,45 +379,66 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
   captionWordSeparator,
   captionBottomOffset,
   captionStrokeWidth,
+  cutoutSrc,
 }) => {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
 
-  // "Dock": while an image_card / motion_graphic is up, slide the speaker down
-  // so the graphic gets its own clear area above the head (nothing is cropped
-  // or covered). 0 = normal framing, 1 = fully docked.
-  const RAMP = 10;
-  let dock = 0;
-  for (const o of overlays ?? []) {
-    if (o.type !== "image_card" && o.type !== "motion_graphic") continue;
-    const a = Math.round(o.in_seconds * fps);
-    const b = Math.round(o.out_seconds * fps);
-    const d = interpolate(frame, [a, a + RAMP, b - RAMP, b], [0, 1, 1, 0], {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    });
-    dock = Math.max(dock, d);
-  }
-  const eased = dock * dock * (3 - 2 * dock);
+  // Layout modes driven by overlays (all ramp in/out over RAMP frames):
+  //  - dock  (image_card / motion_graphic / glass_card): speaker slides down, graphic sits above the head
+  //  - split (screen_split): screen panel on top, speaker clipped into the bottom region
+  //  - dim   (dim): speaker darkened so a caption/word reads
+  const ramp = (types: string[], r: number) => {
+    let v = 0;
+    for (const o of overlays ?? []) {
+      if (!types.includes(o.type)) continue;
+      const a = Math.round(o.in_seconds * fps);
+      const b = Math.round(o.out_seconds * fps);
+      v = Math.max(v, interpolate(frame, [a, a + r, b - r, b], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }));
+    }
+    return v * v * (3 - 2 * v);
+  };
+  const split = ramp(["screen_split"], 10);
+  const dock = split > 0 ? 0 : ramp(["image_card", "motion_graphic", "glass_card"], 10);
+  const dim = ramp(["dim"], 6);
   const DOCK_SHIFT = 380;
+  const SPLIT_SHIFT = SPLIT_TOP - 150; // source y=150 (just above the head) lands at SPLIT_TOP
+  const shift = dock * DOCK_SHIFT + split * SPLIT_SHIFT;
+  const seamOffset = 1920 - (SPLIT_TOP + 40); // caption pill sits on the seam during split
+  const capBottom = (captionBottomOffset ?? 80) * (1 - split) + seamOffset * split;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#D8D6D8" }}>
-      {/* Layer 1: Video background (shifted down while docked) */}
-      <AbsoluteFill
-        style={{
-          transform: `translateY(${eased * DOCK_SHIFT}px)`,
-          WebkitMaskImage: `linear-gradient(to bottom, transparent 0px, #000 ${Math.round(eased * 140)}px)`,
-        }}
-      >
-        <OffthreadVideo
-          src={resolveAsset(videoSrc)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+    <AbsoluteFill style={{ backgroundColor: interpolateColors(split, [0, 1], ["#D8D6D8", "#101014"]) }}>
+      {/* Layer 1: Speaker video (shifted / clipped / dimmed by layout mode) */}
+      <AbsoluteFill style={{ clipPath: split > 0 ? `inset(${split * SPLIT_TOP}px 0 0 0)` : undefined }}>
+        <AbsoluteFill
+          style={{
+            transform: `translateY(${shift}px)`,
+            filter: dim > 0 ? `brightness(${1 - 0.65 * dim})` : undefined,
+            WebkitMaskImage: dock > 0 ? `linear-gradient(to bottom, transparent 0px, #000 ${Math.round(dock * 140)}px)` : undefined,
+          }}
+        >
+          <OffthreadVideo
+            src={resolveAsset(videoSrc)}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          {/* Words behind the speaker + the person cut-out drawn over them */}
+          {cutoutSrc && overlays?.filter((o) => o.type === "behind_word" && o.text).map((o, i) => {
+            const from = Math.round(o.in_seconds * fps);
+            const duration = Math.round((o.out_seconds - o.in_seconds) * fps);
+            return (
+              <Sequence key={o.id || `behind-${i}`} from={from} durationInFrames={duration} layout="none">
+                <BehindWord text={o.text!} y={o.y} color={o.color} />
+                <OffthreadVideo src={resolveAsset(cutoutSrc)} startFrom={from} transparent muted
+                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              </Sequence>
+            );
+          })}
+        </AbsoluteFill>
       </AbsoluteFill>
 
       {/* Layer 2: Overlays (charts, stats, callouts, etc.) */}
-      {overlays?.map((overlay, i) => {
+      {overlays?.filter((o) => o.type !== "behind_word").map((overlay, i) => {
         const from = Math.round(overlay.in_seconds * fps);
         const duration = Math.round(
           (overlay.out_seconds - overlay.in_seconds) * fps
@@ -425,7 +463,7 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
         backgroundColor={captionBackgroundColor}
         color={captionColor}
         {...(captionFontFamily ? { fontFamily: captionFontFamily === "hind-siliguri" ? HIND_SILIGURI : captionFontFamily } : {})}
-        {...(captionBottomOffset !== undefined ? { bottomOffset: captionBottomOffset } : {})}
+        bottomOffset={capBottom}
         {...(captionStrokeWidth !== undefined ? { strokeWidth: captionStrokeWidth } : {})}
         {...(captionWordSeparator !== undefined ? { wordSeparator: captionWordSeparator } : {})}
       />

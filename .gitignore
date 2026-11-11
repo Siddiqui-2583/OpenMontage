@@ -108,3 +108,5 @@ venv/
 # Personal workflow inbox (media is private + large)
 inbox/*
 !inbox/README.md
+
+.venv-matte/
