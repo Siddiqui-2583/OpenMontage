@@ -19,8 +19,8 @@ Read `notes.txt` (language, tone, platform). Look at user assets (logos, photos)
 FIRST before any stock/AI asset.
 
 ## 2. Transcript
-Follow `skills/custom/youtube-transcript.md` (unlisted upload -> transcript site). If the user pasted a
-transcript, use that. Save into `artifacts/`.
+Run `scripts/my_workflow/gemini_transcribe.py` (see `skills/custom/youtube-transcript.md`; Gemini is the primary route,
+unlisted YouTube upload is the fallback). If the user pasted a transcript, use that. Save into `artifacts/`.
 
 ## 3. Idea -> script -> scene plan (gated, one at a time)
 Use the talking-head stage directors in `skills/pipelines/talking-head/`. Checkpoint with

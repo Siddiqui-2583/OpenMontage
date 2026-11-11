@@ -1,4 +1,24 @@
-# Skill: youtube-transcript (timestamped transcript via unlisted YouTube upload)
+# Skill: transcript (Gemini first, YouTube upload as fallback)
+
+## Preferred route: Gemini (tested on Bangla)
+```bash
+python3 scripts/my_workflow/gemini_transcribe.py projects/<name>/assets/video/raw/clip.mp4 \
+    -o projects/<name>/artifacts/transcript --lang Bangla
+```
+Writes `transcript.json` (`[{start,end,text,start_gemini}]`), `.txt`, `.srt`. It extracts mono 64 kbps audio, cuts it at
+silences into ~15 s chunks (Gemini's timestamps drift on long audio), uploads each, deletes the uploads, then snaps each
+line start to the nearest real speech onset (+-0.8 s).
+- Key: `GEMINI_API_KEY` env, or `~/.config/my_workflow/.env`, or `~/.config/watch/.env` (chmod 600). Never print it or put it in a command line.
+- Measured on a 40 s Bangla clip against verified caption starts: mean error 0.36 s, worst 0.71 s (chunk 15 + snap);
+  single upload: mean 0.67 s, worst 1.94 s. Text matched the speaker's own transcript almost word for word
+  (including English words written in Bangla script). Use `--video` only if the picture matters.
+- Line times are line-level: word timing still comes from distributing words over the speech-active time (see build_template.py).
+- **Privacy:** audio goes to Google; free-tier API terms may allow product-improvement use. For client/sensitive footage use a paid key or the YouTube route below.
+- Spot-check product/brand names; show the user a spelling list instead of silently fixing.
+
+---
+# Fallback route: unlisted YouTube upload (below)
+
 
 Use when: the local ASR is unreliable for the language (Bangla gibberish from faster-whisper
 small/medium) and the user wants a timestamped transcript. Owner's channel account:
@@ -34,7 +54,7 @@ get_page_text, file_upload, form_input).
    -> Save/Publish. Copy the video URL (`https://youtu.be/<id>`).
 3. **Wait for processing.** YouTube auto-captions can take a few minutes after upload. Poll the Studio
    video page (Subtitles tab) instead of sleeping blindly; use Monitor/run_in_background, not chained sleeps.
-4. **Get the transcript with timestamps**, first choice:
+4. **Get the transcript with timestamps.** Try `yt-dlp --skip-download --write-auto-subs --sub-langs "bn.*" --sub-format vtt <url>` first (no browser; untested for Bangla quality). Otherwise:
    https://www.youtube-transcript.io/  -> paste the URL -> generate -> copy the timestamped text
    (`get_page_text`). Fallback: https://youtubetotranscript.com/ (same). If both fail or block
    automation, use YouTube's own transcript panel ("...more" -> Show transcript) on the watch page.
