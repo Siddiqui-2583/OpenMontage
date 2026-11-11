@@ -42,7 +42,7 @@ n=len(SEG); f=[]
 for i,(a,b) in enumerate(SEG):
     f.append(f"[0:v]trim={a}:{b},setpts=PTS-STARTPTS[v{i}]")
     d=b-a
-    f.append(f"[0:a]atrim={a}:{b},asetpts=PTS-STARTPTS,afade=t=in:d=0.008,afade=t=out:st={max(0,d-0.008):.3f}:d=0.008[a{i}]")
+    f.append(f"[0:a]atrim={a}:{b},asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st={max(0,d-0.03):.3f}:d=0.03[a{i}]")
 f.append("".join(f"[v{i}][a{i}]" for i in range(n))+f"concat=n={n}:v=1:a=1[vo][ao]")
 f.append("[ao]loudnorm=I=-16:TP=-1.5:LRA=11[aout]")
 out=f"{P}/assets/video/edited.mp4"

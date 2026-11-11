@@ -58,6 +58,15 @@ stroke on white backgrounds, bottom offset ~260.
 QA: render stills (`npx remotion still ... --frame=N`) at every overlay, look at them, then
 ffprobe duration/size and loudness check. Report caption-timing limits honestly.
 
+### 5b. Cut QA (before presenting)
+```bash
+.venv-matte/bin/python scripts/my_workflow/cut_qa.py projects/<name>/assets/video/edited.mp4 \
+    projects/<name>/assets/cut_segments.json -o projects/<name>/renders/qa_cuts --max 12
+```
+Scores every cut for audio pops (flag = jump > 0.15 FS AND > 8x typical; the ratio alone is noisy at word endings) and writes
+filmstrip+waveform PNGs (`timeline_view.py`, from browser-use/video-use, MIT). Look at the PNGs of flagged cuts and a few others.
+Segments are faded 30 ms at every boundary in `build_template.py` (a pop-free default).
+
 ## 6. Thumbnail (Codex)
 Grab a clean frame of the speaker (`ffmpeg -ss <t> -i edited.mp4 -frames:v 1 speaker.png`), then
 `codex_image.sh thumbnail.png "<prompt>" speaker.png`. Prompt: keep face/beard/cap/clothes EXACTLY,
