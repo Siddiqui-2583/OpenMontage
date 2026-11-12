@@ -21,13 +21,16 @@ def pcm(video, t0, t1, sr=16000):
 
 
 def pop_score(video, t, sr=16000):
-    """Largest sample-to-sample jump within +-4 ms of the cut vs the typical jump in +-150 ms. >~8 and >0.15 FS = audible click."""
+    """Largest sample-to-sample jump within +-4 ms of the cut, relative to the 99.5th percentile of jumps elsewhere in the
+    +-150 ms window. Voiced speech has big jumps everywhere, so a real click must clearly exceed the rest (>1.8x) and be large (>0.1 FS)."""
     x, sr = pcm(video, t - 0.15, t + 0.15, sr)
     if len(x) < sr * 0.1:
         return 0.0, 0.0
     d = np.abs(np.diff(x)); mid = len(d) // 2; w = int(0.004 * sr)
-    local = float(d[max(0, mid - w): mid + w].max()); typical = float(np.median(d) + 1e-6)
-    return local / typical, local
+    local = float(d[max(0, mid - w): mid + w].max())
+    rest = np.concatenate([d[: max(0, mid - w)], d[mid + w:]])
+    ref = float(np.percentile(rest, 99.5)) + 1e-6
+    return local / ref, local
 
 
 def main():
@@ -43,7 +46,7 @@ def main():
     rows, flagged = [], []
     for i, b in enumerate(bounds):
         ratio, jump = pop_score(a.video, b)
-        bad = ratio > 8 and jump > 0.15
+        bad = ratio > 1.8 and jump > 0.1
         rows.append((i, b, ratio, jump, bad))
         if bad: flagged.append(i)
     # filmstrips: all flagged cuts first, then evenly spaced others

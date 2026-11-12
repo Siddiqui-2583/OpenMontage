@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, interpolate, interpolateColors, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { loadFont as loadHindSiliguri } from "@remotion/google-fonts/HindSiliguri";
 import { ICONS } from "./LogoPop";
 
@@ -209,6 +209,166 @@ const MagicSparkle: React.FC = () => {
   );
 };
 
+
+// ---- "Dead Internet Theory" set -------------------------------------------------------------------------------
+const RED = "#FF5C5C", CYAN = "#5CE1E6", GRAY = "#9aa3c7", CARD = "#2c3046";
+const Bot: React.FC<{ x: number; y: number; s?: number; c?: string }> = ({ x, y, s = 1, c = GRAY }) => (
+  <g transform={`translate(${x},${y}) scale(${s})`}>
+    <line x1={0} y1={-26} x2={0} y2={-34} stroke={c} strokeWidth={3} /><circle cx={0} cy={-36} r={4} fill={RED} />
+    <rect x={-22} y={-26} width={44} height={36} rx={9} fill={c} />
+    <circle cx={-9} cy={-9} r={5} fill="#0e0f19" /><circle cx={9} cy={-9} r={5} fill="#0e0f19" />
+    <rect x={-10} y={2} width={20} height={4} rx={2} fill="#0e0f19" />
+  </g>
+);
+const Human: React.FC<{ x: number; y: number; s?: number }> = ({ x, y, s = 1 }) => (
+  <g transform={`translate(${x},${y}) scale(${s})`} style={{ filter: "drop-shadow(0 0 10px rgba(255,210,63,.8))" }}>
+    <circle cx={0} cy={-18} r={13} fill={YEL} /><path d="M-24 14 Q0 -8 24 14 Z" fill={YEL} />
+  </g>
+);
+
+// 6) bots vs humans: a stream of icons, almost all bots (conceptual, not a statistic)
+const BotsVsHumans: React.FC = () => {
+  const { frame, p } = useT();
+  const lanes = [135, 220, 305];
+  const items: React.ReactNode[] = [];
+  lanes.forEach((y, l) => {
+    for (let j = 0; j < 13; j++) {
+      const x = ((j * 92 - frame * (2.6 + l * 0.7) + l * 37) % 1196 + 1196) % 1196 - 98;
+      items.push((j + l * 3) % 11 === 4 ? <Human key={`${l}-${j}`} x={x} y={y} /> : <Bot key={`${l}-${j}`} x={x} y={y} s={0.9} />);
+    }
+  });
+  return (
+    <Panel title="ইন্টারনেটের ট্রাফিক">
+      {items}
+      <T x={500} y={378} fontSize={32} fill="#fff" opacity={ramp(p, 0.3, 0.5)}>বট বট বট… মানুষ কয়জন?</T>
+    </Panel>
+  );
+};
+
+// 7) simulation grid: identical feed cards pulled by strings from above
+const SimulationGrid: React.FC = () => {
+  const { frame, p } = useT();
+  const cards: React.ReactNode[] = [];
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) {
+    const x = 75 + c * 150, y = 160 + r * 98, sway = Math.sin(frame * 0.1 + c * 0.9 + r) * 6 * ramp(p, 0.05, 0.3);
+    cards.push(
+      <g key={`${r}-${c}`}>
+        <line x1={x + 55} y1={78} x2={x + 55 + sway} y2={y} stroke="#6b7399" strokeWidth={2} />
+        <g transform={`translate(${sway},${Math.sin(frame * 0.1 + c) * 3})`}>
+          <rect x={x} y={y} width={110} height={80} rx={12} fill={CARD} stroke="rgba(255,255,255,.18)" />
+          <circle cx={x + 24} cy={y + 24} r={11} fill={GRAY} /><rect x={x + 44} y={y + 16} width={52} height={7} rx={3} fill="#555d80" />
+          <rect x={x + 44} y={y + 30} width={36} height={7} rx={3} fill="#555d80" /><rect x={x + 14} y={y + 52} width={82} height={10} rx={4} fill="#3b4163" />
+        </g>
+      </g>
+    );
+  }
+  const hx = 500 + Math.sin(frame * 0.05) * 330;
+  return (
+    <Panel title="সিমুলেশন">
+      {cards}
+      <rect x={60} y={70} width={880} height={8} rx={4} fill="#6b7399" />
+      <g transform={`translate(${hx},74)`}><circle r={20} fill="none" stroke={RED} strokeWidth={4} /><line x1={-28} y1={0} x2={28} y2={0} stroke={RED} strokeWidth={3} /><line x1={0} y1={-28} x2={0} y2={28} stroke={RED} strokeWidth={3} /></g>
+      <T x={500} y={385} fontSize={30} fill="#fff" opacity={ramp(p, 0.4, 0.6)}>সবকিছু কন্ট্রোলড — আমরা ট্র্যাপড</T>
+    </Panel>
+  );
+};
+
+// 8) LLM = text generator: training-data tokens flow in, text flows out
+const LlmTokens: React.FC = () => {
+  const { frame, p } = useT();
+  const words = ["the", "রাজা", "love", "গল্প", "code", "ভাষা"];
+  const tokens = words.map((w, k) => {
+    const u = ((frame * 2.2 + k * 52) % 312) / 312, x = 95 + u * 340, y = 160 + (k % 3) * 46;
+    return <g key={k} opacity={Math.min(1, u * 5) * (1 - ramp(u, 0.8, 1))}><rect x={x - 34} y={y - 17} width={68} height={34} rx={17} fill={YEL} /><T x={x} y={y + 8} fontSize={22} fill={INK}>{w}</T></g>;
+  });
+  const out = [0, 1, 2].map((i) => <rect key={i} x={760} y={150 + i * 44} width={Math.max(0, 170 * ramp(((frame * 0.8 + i * 26) % 80) / 80, 0.05, 0.8))} height={14} rx={7} fill={CYAN} />);
+  const glow = 14 + 10 * Math.sin(frame * 0.2);
+  return (
+    <Panel title="LLM কীভাবে লেখে?">
+      <rect x={40} y={100} width={215} height={200} rx={22} fill="#1d2138" stroke="rgba(255,255,255,.2)" /><T x={147} y={142} fontSize={26} fill={GRAY}>ট্রেনিং ডেটা</T>
+      {tokens}
+      <circle cx={500} cy={205} r={74} fill="#23284a" stroke={YEL} strokeWidth={3} style={{ filter: `drop-shadow(0 0 ${glow}px rgba(255,210,63,.7))` }} /><T x={500} y={218} fontSize={40} fill="#fff">LLM</T>
+      <rect x={745} y={100} width={215} height={200} rx={22} fill="#1d2138" stroke="rgba(255,255,255,.2)" /><T x={852} y={132} fontSize={26} fill={GRAY}>আউটপুট</T>{out}
+      <T x={500} y={372} fontSize={32} fill="#fff" opacity={ramp(p, 0.4, 0.6)}>শুধুই একটা টেক্সট জেনারেটর</T>
+    </Panel>
+  );
+};
+
+// 9) everyone's content looks the same: varied cards morph into identical ones
+const SameCards: React.FC = () => {
+  const { frame, p } = useT();
+  const cols = ["#FFD23F", "#FF8FA3", "#5CE1E6", "#B28DFF", "#7CF29A", "#FFA94D", "#74C0FC", "#F783AC"];
+  const t = ramp(p, 0.3, 0.7);
+  const cards = cols.map((c, i) => {
+    const col = i % 4, row = Math.floor(i / 4), cx = 160 + col * 225, cy = 150 + row * 125;
+    const w = interpolate(t, [0, 1], [130 + ((i * 37) % 60), 170]), h = interpolate(t, [0, 1], [80 + ((i * 23) % 40), 100]);
+    const rot = interpolate(t, [0, 1], [((i % 3) - 1) * 9, 0]) + Math.sin(frame * 0.1 + i) * 1.2 * (1 - t), rad = interpolate(t, [0, 1], [4 + (i % 4) * 8, 14]);
+    return <g key={i} transform={`translate(${cx},${cy}) rotate(${rot})`}><rect x={-w / 2} y={-h / 2} width={w} height={h} rx={rad} fill={interpolateColors(t, [0, 1], [c, GRAY])} /><rect x={-w / 2 + 14} y={-h / 2 + 16} width={w * 0.5} height={8} rx={4} fill="rgba(0,0,0,.25)" /><rect x={-w / 2 + 14} y={-h / 2 + 34} width={w * 0.7} height={8} rx={4} fill="rgba(0,0,0,.18)" /></g>;
+  });
+  return (
+    <Panel title="সবার কনটেন্ট">
+      {cards}
+      <T x={500} y={380} fontSize={34} fill="#fff" opacity={ramp(p, 0.65, 0.85)}>সবই কাছাকাছি — একই রকম</T>
+    </Panel>
+  );
+};
+
+// 10) token burn: the meter drains while identical app screens repeat
+const TokenBurn: React.FC = () => {
+  const { frame, p } = useT();
+  const level = 1 - ramp(p, 0.1, 0.9), color = interpolateColors(level, [0, 0.5, 1], [RED, "#FFA94D", YEL]);
+  const apps = [0, 1, 2, 3, 4].map((i) => {
+    const s = Math.min(1, ramp(p, 0.12 + i * 0.13, 0.22 + i * 0.13)), x = 60 + i * 180;
+    return <g key={i} transform={`translate(${x + 80},${250}) scale(${s})`} opacity={s}><rect x={-80} y={-60} width={160} height={120} rx={12} fill={CARD} stroke="rgba(255,255,255,.2)" />
+      <circle cx={-62} cy={-44} r={4} fill={RED} /><circle cx={-48} cy={-44} r={4} fill={YEL} /><circle cx={-34} cy={-44} r={4} fill="#7CF29A" />
+      <rect x={-64} y={-26} width={90} height={9} rx={4} fill="#555d80" /><rect x={-64} y={-8} width={128} height={9} rx={4} fill="#3b4163" /><rect x={-64} y={10} width={60} height={9} rx={4} fill="#3b4163" /></g>;
+  });
+  const flame = 1 + 0.12 * Math.sin(frame * 0.5);
+  return (
+    <Panel title="টোকেন নষ্ট">
+      <text x={60} y={132} fontFamily={HIND} fontWeight={700} fontSize={26} fill={GRAY}>টোকেন</text>
+      <rect x={160} y={110} width={780} height={30} rx={15} fill="#1d2138" stroke="rgba(255,255,255,.2)" /><rect x={160} y={110} width={Math.max(8, 780 * level)} height={30} rx={15} fill={color} />
+      <g transform={`translate(${160 + Math.max(8, 780 * level)},125) scale(${flame})`} opacity={ramp(p, 0.1, 0.2)}><path d="M0 -22 C14 -6 12 8 0 16 C-12 8 -14 -6 0 -22 Z" fill={RED} /><path d="M0 -8 C7 0 6 8 0 12 C-6 8 -7 0 0 -8 Z" fill={YEL} /></g>
+      {apps}
+      <T x={500} y={385} fontSize={30} fill="#fff" opacity={ramp(p, 0.55, 0.75)}>একই জিনিস — বারবার</T>
+    </Panel>
+  );
+};
+
+// 11) brain fades while AI grows (no claims beyond the speech)
+const BrainAi: React.FC = () => {
+  const { frame, p } = useT();
+  const fade = 1 - 0.75 * ramp(p, 0.25, 0.75), grow = 0.7 + 0.6 * ramp(p, 0.25, 0.75), pulse = 1 + 0.04 * Math.sin(frame * 0.3);
+  const pins = [-36, -12, 12, 36];
+  return (
+    <Panel title="কে ভাবছে?">
+      <g transform="translate(260,205)" opacity={fade}><circle r={64} fill={YEL} opacity={0.9} /><rect x={-26} y={56} width={52} height={22} rx={6} fill={GRAY} /><rect x={-18} y={80} width={36} height={10} rx={5} fill={GRAY} />
+        <path d="M-22 -10 Q0 -34 22 -10 M0 -24 L0 20" stroke={INK} strokeWidth={6} fill="none" strokeLinecap="round" /></g>
+      <path d="M360 205 L640 205" stroke={GRAY} strokeWidth={5} strokeDasharray="14 12" strokeDashoffset={-frame * 2} /><polygon points="640,185 680,205 640,225" fill={GRAY} />
+      <g transform={`translate(790,205) scale(${grow * pulse})`}><rect x={-52} y={-52} width={104} height={104} rx={16} fill="#23284a" stroke={CYAN} strokeWidth={4} style={{ filter: "drop-shadow(0 0 18px rgba(92,225,230,.7))" }} />
+        {pins.map((q) => <g key={q}><rect x={q - 3} y={-68} width={6} height={16} fill={CYAN} /><rect x={q - 3} y={52} width={6} height={16} fill={CYAN} /><rect x={-68} y={q - 3} width={16} height={6} fill={CYAN} /><rect x={52} y={q - 3} width={16} height={6} fill={CYAN} /></g>)}
+        <T x={0} y={14} fontSize={38} fill={CYAN}>AI</T></g>
+      <T x={500} y={385} fontSize={30} fill="#fff" opacity={ramp(p, 0.5, 0.7)}>ভাবনা কমছে — স্লপ বাড়ছে</T>
+    </Panel>
+  );
+};
+
+// 12) the way out: human -> unique thing -> AI trains -> unique output
+const UniqueLoop: React.FC = () => {
+  const { frame, p } = useT();
+  const N = [{ x: 500, y: 118, t: "মানুষ", c: YEL }, { x: 800, y: 290, t: "ইউনিক ডেটা", c: CYAN }, { x: 200, y: 290, t: "AI ট্রেন", c: "#B28DFF" }];
+  const u = ((frame * 0.011) % 1) * 3, i = Math.floor(u), f = u - i, a = N[i % 3], b = N[(i + 1) % 3];
+  const dx = a.x + (b.x - a.x) * f, dy = a.y + (b.y - a.y) * f;
+  return (
+    <Panel title="ওয়ে আউট">
+      {N.map((n, k) => { const m = N[(k + 1) % 3]; return <g key={k}><line x1={n.x} y1={n.y} x2={m.x} y2={m.y} stroke="#4a5178" strokeWidth={4} strokeDasharray="10 10" strokeDashoffset={-frame} /></g>; })}
+      {N.map((n, k) => <g key={k} opacity={0.35 + 0.65 * ramp(p, k * 0.12, k * 0.12 + 0.2)}><rect x={n.x - 105} y={n.y - 30} width={210} height={60} rx={30} fill="#1d2138" stroke={n.c} strokeWidth={3} /><T x={n.x} y={n.y + 10} fontSize={30} fill={n.c}>{n.t}</T></g>)}
+      <circle cx={dx} cy={dy} r={11} fill="#fff" style={{ filter: "drop-shadow(0 0 12px #fff)" }} />
+      <T x={500} y={218} fontSize={26} fill={GRAY} opacity={ramp(p, 0.5, 0.7)}>ইউনিক → ইউনিক</T>
+    </Panel>
+  );
+};
+
 export const MotionGraphic: React.FC<{ kind: string }> = ({ kind }) => {
   switch (kind) {
     case "keyboard_vs_pen": return <KeyboardVsPen />;
@@ -216,6 +376,13 @@ export const MotionGraphic: React.FC<{ kind: string }> = ({ kind }) => {
     case "tools_vs_notebook": return <ToolsVsNotebook />;
     case "idea_flow": return <IdeaFlow />;
     case "magic_sparkle": return <MagicSparkle />;
+    case "bots_vs_humans": return <BotsVsHumans />;
+    case "simulation_grid": return <SimulationGrid />;
+    case "llm_tokens": return <LlmTokens />;
+    case "same_cards": return <SameCards />;
+    case "token_burn": return <TokenBurn />;
+    case "brain_ai": return <BrainAi />;
+    case "unique_loop": return <UniqueLoop />;
     default: return null;
   }
 };

@@ -1,6 +1,6 @@
 /* VENDORED from https://github.com/Vibha-Ramprakash/claude-caption-styles (captions.js), MIT License,
    Copyright (c) 2026 Vibha Ramprakash (@vibha.in.progress). Local change: Bangla fallback ('Hind Siliguri') appended to the
-   font stacks below so Bangla glyphs render; Latin glyphs keep the style's own font. Also: guard `nx` at the last word in phrases() (crashed in auto line-break mode). Used by components/StyledCaptions.tsx. */
+   font stacks below so Bangla glyphs render; Latin glyphs keep the style's own font. Also: pop-sticker `stickers` option (default off); guard `nx` at the last word in phrases() (crashed in auto line-break mode). Used by components/StyledCaptions.tsx. */
 /* Claude Caption Styles: 7 free caption styles for vertical videos.
    Made by @vibha.in.progress · MIT licence · https://instagram.com/vibha.in.progress
 
@@ -100,6 +100,7 @@
     },
     {
       id: 'pop-sticker', name: 'Pop Sticker',
+      options: { stickers: false }, // local change: stars/flowers/hearts off by default (setOption('stickers', true) restores them)
       look: 'Loud colour blocks with black outlines and hard shadows, little stickers popping in around them. Key words go purple and get a star.',
       enter(c, ph, t) {
         const r = rowEl(c.L, 'gap:1.6cqw;font:900 ' + (ph.txt.length > 18 ? 8.6 : 10) + 'cqw ' + SANS + ';text-shadow:none');
@@ -108,14 +109,14 @@
           const s = document.createElement('span'); s.textContent = x.t; const cl = x.k ? ['#8a3cff', '#fff'] : COL[(i + ph.i) % 4];
           s.style.cssText = 'display:inline-block;position:relative;background:' + cl[0] + ';color:' + cl[1] + ';padding:.5cqw 2cqw;border:.5cqw solid #111;box-shadow:1.3cqw 1.3cqw 0 #111;border-radius:1.4cqw;letter-spacing:-.02em'; r.appendChild(s);
           A(s, [{ opacity: 0, transform: 'scale(.2)' }, { opacity: 1, transform: 'scale(1.18)', offset: .55 }, { opacity: 1, transform: 'scale(.94)', offset: .8 }, { opacity: 1, transform: 'scale(1)' }], { delay: D(x, t), duration: 440 });
-          if (x.k) {
+          if (x.k && c.opt('stickers')) {
             const st = document.createElement('i'); st.textContent = '★';
             st.style.cssText = 'position:absolute;right:-4cqw;top:-5cqw;font-style:normal;font-size:7cqw;color:#ffd60a;-webkit-text-stroke:.4cqw #111'; s.appendChild(st);
             A(st, [{ transform: 'scale(0)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { delay: D(x, t) + 200, duration: 380 });
           }
         });
         const MINI = [['★', '#ffd60a'], ['✦', '#fff'], ['♥', '#ff5a8a'], ['✿', '#c6ff3d'], ['●', '#8ad8ff'], ['✚', '#ff8fd8']];
-        for (let j = 0; j < 4; j++) {
+        for (let j = 0; j < (c.opt('stickers') ? 4 : 0); j++) {
           const m = MINI[(ph.i * 3 + j) % MINI.length], w = ph.w[j % ph.w.length]; const e = document.createElement('i'); e.textContent = m[0];
           e.style.cssText = 'position:absolute;left:' + (8 + ((j * 29 + ph.i * 17) % 84)) + '%;top:' + (j % 2 ? '-9cqw' : 'calc(100% + 1.5cqw)') + ';font-style:normal;font-size:' + (4.2 + ((j + ph.i) % 3) * 1.1) + 'cqw;line-height:1;color:' + m[1] + ';-webkit-text-stroke:.32cqw #111;text-shadow:.5cqw .5cqw 0 #111;font-family:' + SANS;
           r.appendChild(e);

@@ -370,6 +370,7 @@ export interface TalkingHeadProps {
   captionStyle?: string;
   captionY?: number; // % from top (styled captions only)
   captionScale?: number;
+  dockShift?: number; // px the speaker slides down when a graphic docks above (default 380; use less for tall-headroom footage)
 }
 
 export const TalkingHead: React.FC<TalkingHeadProps> = ({
@@ -389,6 +390,7 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
   captionStyle,
   captionY,
   captionScale,
+  dockShift,
 }) => {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
@@ -410,7 +412,7 @@ export const TalkingHead: React.FC<TalkingHeadProps> = ({
   const split = ramp(["screen_split"], 10);
   const dock = split > 0 ? 0 : ramp(["image_card", "motion_graphic", "glass_card"], 10);
   const dim = ramp(["dim"], 6);
-  const DOCK_SHIFT = 380;
+  const DOCK_SHIFT = dockShift ?? 380;
   const SPLIT_SHIFT = SPLIT_TOP - 150; // source y=150 (just above the head) lands at SPLIT_TOP
   const shift = dock * DOCK_SHIFT + split * SPLIT_SHIFT;
   const seamOffset = 1920 - (SPLIT_TOP + 40); // caption pill sits on the seam during split

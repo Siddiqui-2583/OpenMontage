@@ -9,7 +9,7 @@ Prints the manifest path. Never modifies the inbox.
 
 Usage: python3 scripts/my_workflow/ingest.py <name> [--inbox inbox]
 """
-import argparse, json, shutil, subprocess, sys
+import argparse, json, re, shutil, subprocess, sys
 from pathlib import Path
 
 VIDEO = {".mp4", ".mov", ".mkv", ".webm", ".m4v"}
@@ -39,7 +39,8 @@ def main() -> int:
     if not src.is_dir():
         print(f"no such inbox folder: {src}", file=sys.stderr)
         return 1
-    proj = ROOT / "projects" / a.name
+    slug = re.sub(r"[^a-z0-9]+", "-", a.name.lower()).strip("-") or "project"   # inbox name may have spaces/caps
+    proj = ROOT / "projects" / slug
     (raw := proj / "assets/video/raw").mkdir(parents=True, exist_ok=True)
     (usr := proj / "assets/user").mkdir(parents=True, exist_ok=True)
     (art := proj / "artifacts").mkdir(parents=True, exist_ok=True)
@@ -61,8 +62,9 @@ def main() -> int:
     if not videos:
         print("no videos found at top level of the inbox folder", file=sys.stderr)
         return 1
-    m = {"project": a.name, "videos": videos, "user_assets": assets, "notes": notes}
+    m = {"project": slug, "inbox": a.name, "videos": videos, "user_assets": assets, "notes": notes}
     (art / "ingest_manifest.json").write_text(json.dumps(m, indent=2, ensure_ascii=False))
+    print(f"project slug: {slug}")
     print(art / "ingest_manifest.json")
     return 0
 

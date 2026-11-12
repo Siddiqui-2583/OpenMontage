@@ -110,3 +110,6 @@ inbox/*
 !inbox/README.md
 
 .venv-matte/
+
+# Archive of published deliverables (large, private media)
+published-videos/

@@ -46,16 +46,25 @@ class Api:
     def __init__(self, key):
         self.key = key
 
-    def call(self, method, url, data=None, headers=None, timeout=120):
-        req = Request(url, data=data, method=method, headers={"x-goog-api-key": self.key, **(headers or {})})
-        try:
-            with urlopen(req, timeout=timeout) as r:
-                return dict(r.headers), r.read()
-        except HTTPError as e:
-            msg = e.read().decode("utf-8", "replace").replace(self.key, "[redacted]")[:500]
-            sys.exit(f"Gemini HTTP {e.code}: {msg}")
-        except (URLError, TimeoutError, OSError) as e:
-            sys.exit(f"Gemini network error: {type(e).__name__}")
+    def call(self, method, url, data=None, headers=None, timeout=120, tries=6):
+        for attempt in range(tries):
+            if hasattr(data, "seek"):
+                data.seek(0)
+            req = Request(url, data=data, method=method, headers={"x-goog-api-key": self.key, **(headers or {})})
+            try:
+                with urlopen(req, timeout=timeout) as r:
+                    return dict(r.headers), r.read()
+            except HTTPError as e:
+                msg = e.read().decode("utf-8", "replace").replace(self.key, "[redacted]")[:500]
+                if e.code in (429, 500, 502, 503, 504) and attempt < tries - 1:
+                    wait = min(60, 5 * 2 ** attempt)
+                    print(f"[gemini] HTTP {e.code}, retry {attempt + 1}/{tries - 1} in {wait}s", file=sys.stderr)
+                    time.sleep(wait); continue
+                sys.exit(f"Gemini HTTP {e.code}: {msg}")
+            except (URLError, TimeoutError, OSError) as e:
+                if attempt < tries - 1:
+                    time.sleep(5); continue
+                sys.exit(f"Gemini network error: {type(e).__name__}")
 
     def upload(self, path: Path, mime):
         size = path.stat().st_size
@@ -236,7 +245,12 @@ def main():
                   ["-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "64k", str(media)]
             subprocess.run(cmd, check=True)
         print(f"[gemini] chunk {ci + 1}/{len(chunks)}: uploading {media.name} ({media.stat().st_size // 1024} KB)…", file=sys.stderr)
-        part = transcribe_media(api, media, mime, a.lang, a.model)
+        cache = Path(str(Path(a.out)) + ".chunks") / f"{ci:03d}_{c0:.2f}.json"
+        if cache.exists():
+            part = json.loads(cache.read_text()); print(f"[gemini] chunk {ci + 1}: cached", file=sys.stderr)
+        else:
+            part = transcribe_media(api, media, mime, a.lang, a.model)
+            cache.parent.mkdir(parents=True, exist_ok=True); cache.write_text(json.dumps(part, ensure_ascii=False))
         for l in part:
             l["start"] += c0; l["end"] += c0
         lines += part

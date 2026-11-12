@@ -6,7 +6,8 @@ checkpoint / human-gate rule in AGENT_GUIDE.md still applies. It adds ingest, tr
 assets, thumbnail, caption, and a final delivery folder.
 
 **End result the user wants:** the agent's last message gives ONE folder path:
-`projects/<name>/DELIVERY/` containing the final video, `thumbnail.png`, `caption.md`, `transcript.txt`.
+`projects/<name>/DELIVERY/` containing the final video, `thumbnail.png`, `caption.md`, `captions.<locale>.srt` (viewer-toggle captions for
+platform upload) and `transcript.txt` (plain text, no timestamps). Always all five: the user uploads the SRT and transcript to Facebook/YouTube.
 
 ## 0. Preflight
 `python3 -c "from tools.tool_registry import registry; registry.discover(); print(registry.provider_menu())"`
@@ -94,6 +95,8 @@ It replaces the default `CaptionOverlay`. Engine: vendored `src/vendor/captions.
 last-word crash). One key word per line (the longest) gets the highlight colour. Tested with Bangla: pop-sticker, editorial-highlight, rolodex-flip,
 retro-typer look good; **smoke-exit draws dotted rings around Bangla letters, avoid**. White text on a white kurta is weak for rolodex/retro/smoke:
 prefer pop-sticker or editorial-highlight (colour blocks) on light outfits. Not yet combined with `screen_split` seam positioning.
+`pop-sticker` decorations (stars, flowers, hearts) are OFF by default (user dislikes them); `setOption('stickers', true)` in `vendor/captions.js` restores them.
+**`dim` overlay: avoid unless the user asks.** It drops the speaker to ~35% brightness and reads as a sudden dark screen; the user rejected it on dead-internet-theory.
 
 ## 6. Thumbnail (Codex)
 Grab a clean frame of the speaker (`ffmpeg -ss <t> -i edited.mp4 -frames:v 1 speaker.png`), then
@@ -103,12 +106,26 @@ small bottom badge, high contrast, no extra text. **Read the image and verify th
 (Bangla is usually correct, but check); if garbled, regenerate art without text and overlay the text
 in Remotion/ffmpeg with Hind Siliguri.
 
+Pairing rules (from yt-package, MIT; Jakeschincariol/youtube-agent-skill): decide the title and the thumbnail text TOGETHER. Thumbnail
+<= 3 words and must NOT repeat the title's words; title <= 60 chars (40 on mobile), product/person names or a number up front, no vague
+words. Thumbnail brief = expression, framing, the <=3 words, and what the background does for contrast at feed size. Pick the speaker
+reference frame at a pause (mouth closed, eyes open): open-mouth speech frames look awkward in stills. Re-creation of the face is OK
+(user-approved), keep cap/beard/clothes. Check: `python3 scripts/my_workflow/copy_lint.py title --title "..." --thumb "..."`.
+
 ## 7. Caption (write it yourself, not with Codex)
-`caption.md`: Shorts title (<70 chars), 1-line hook, 3-4 short body lines, CTA, ~10 hashtags.
+`caption.md`: Shorts title (<60 chars), 1-line hook, short body, ONE CTA, <=5 hashtags.
+Structure (from ig-caption, MIT; Jakeschincariol/instagram-agent-skill): line 1 = the hook if the video's own hook is weak (name/number in the
+first 125 chars, no greeting, no hashtag first), else the ask + context; short body paragraphs with the search phrases people would type;
+ONE ask; <= 5 hashtags on the last line (their claim: Instagram capped tags at 5 on 2025-12-18, verify); no generic tags (#viral #fyp).
+Only claims the speaker made. ALWAYS lint before delivering: `python3 scripts/my_workflow/copy_lint.py caption caption.txt --keywords "a,b"`
+(Bangla-aware port; the original tools could not see Bangla words/hashtags). Keep a plain `caption.txt` for the linter; `caption.md` adds title + thumbnail text.
+
 Only claims the speaker actually made. Language = the video's language.
 
 ## 8. Deliver
-`python3 scripts/my_workflow/deliver.py <name> --video <final.mp4> --thumbnail <png> --caption <md> --transcript <txt>`
+`python3 scripts/my_workflow/deliver.py <name> --video <final.mp4> --thumbnail <png> --caption <md> [--locale bn_IN]`
+It generates `captions.<locale>.srt` + `transcript.txt` from `projects/<name>/assets/captions_words.json` (final-timeline word timings, via `make_srt.py`).
+Upload advice: upload the SRT, turn OFF the platform's auto-captions (ours are burned in), skip audio description (talking head).
 Final message: the printed folder path, file specs, and honest caveats. Publishing/upload to social
 platforms is a separate gated step: offer, don't do.
 
@@ -144,3 +161,14 @@ Then in props: `"cutoutSrc": "<name>/cutout.webm"` and overlays like
 The word drops in behind the head and the cut-out is drawn over it. Use a DARK colour on a light wall.
 Bangla works (Hind Siliguri); font auto-fits ~92% of the width. Speed: about real time (12 s clip = 12 s).
 Always check stills with fast hand/head movement: mask edges can flicker. Credit: `scripts/my_workflow/models/NOTICE.md`.
+
+## 10. After publishing: archive + cleanup (only when the user says the video is published)
+```bash
+python3 scripts/my_workflow/cleanup_project.py <slug> [--inbox "Inbox Folder Name"]          # dry run: lists what happens
+python3 scripts/my_workflow/cleanup_project.py <slug> [--inbox "Inbox Folder Name"] --yes    # does it
+```
+Moves `projects/<slug>/DELIVERY/` to **`published-videos/<slug>/`** (repo root, git-ignored; a rename, so big files are not copied), then deletes the rest
+of the project: `projects/<slug>/`, its Remotion staging (`remotion-composer/public/<slug>/`, `public/demo-props/<slug>*.json`) and, with `--inbox`,
+the copied raw footage in `inbox/`. Refuses unless DELIVERY holds a video, or if `published-videos/<slug>/` already has files.
+Never run it on an unpublished project, and never without the user's go-ahead. `~/Movies` copies and the original OBS files are not touched.
+Older projects without a DELIVERY folder: hard-link the final video, thumbnail and caption into DELIVERY first (`ln`), then run it.
