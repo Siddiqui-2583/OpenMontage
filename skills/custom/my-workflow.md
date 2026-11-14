@@ -16,6 +16,7 @@ Announce render runtime = remotion (talking-head requires it) before acting.
 
 ## 1. Ingest
 `python3 scripts/my_workflow/ingest.py <name>` -> `projects/<name>/artifacts/ingest_manifest.json`
+   `ingest.py` also runs a black-bar check (1 frame/s cropdetect): if it prints `BLACK BARS ... suggested ffmpeg filter: crop=...`, add that crop (then scale to 1080x1920) in the build, after checking a still. Result is stored as `black_bars` in `ingest_manifest.json`.
 Read `notes.txt` (language, tone, platform). Look at user assets (logos, photos) and plan to use them
 FIRST before any stock/AI asset.
 
@@ -128,6 +129,7 @@ It generates `captions.<locale>.srt` + `transcript.txt` from `projects/<name>/as
 Upload advice: upload the SRT, turn OFF the platform's auto-captions (ours are burned in), skip audio description (talking head).
 Final message: the printed folder path, file specs, and honest caveats. Publishing/upload to social
 platforms is a separate gated step: offer, don't do.
+`deliver.py` also runs `delivery_check.py` (warn-only QA: format, LUFS/true peak, black/frozen/silence, dropouts, single-frame flashes, flat first frame; idea from kajisho5/ffmpeg-skill, MIT). Fix real WARNs before handing over; `yuvj420p` (OBS full-range tag) is known and accepted by Facebook; gaps <=50 ms are our cut fades.
 
 ## 9. Demo template (software demo / product explainer reels)
 Pattern reverse-engineered with rea-video from two reference reels (talker + real screen on top,
@@ -172,3 +174,16 @@ of the project: `projects/<slug>/`, its Remotion staging (`remotion-composer/pub
 the copied raw footage in `inbox/`. Refuses unless DELIVERY holds a video, or if `published-videos/<slug>/` already has files.
 Never run it on an unpublished project, and never without the user's go-ahead. `~/Movies` copies and the original OBS files are not touched.
 Older projects without a DELIVERY folder: hard-link the final video, thumbnail and caption into DELIVERY first (`ln`), then run it.
+
+## 11. Publish to the user's PERSONAL Facebook profile (route B: browser automation, per-post approval)
+Personal profiles cannot be posted to via Graph API, so drive the user's own logged-in Chrome with the `mcp__claude-in-chrome__*` tools
+(load them with ToolSearch first). Never ask for or type the Facebook password, 2FA codes or tokens; if logged out, ask the user to log in.
+1. Pre-flight: `DELIVERY/` has the 5 files; run `copy_lint.py` on `caption.md`.
+2. **Show the user the exact post** (video path, caption text, audience, time) and wait for an explicit "approve" for THAT post. Approval never carries over to the next video.
+3. Open facebook.com in Chrome, Reel/video composer, upload the video (`file_upload`), paste caption, set audience as told (default: ask), thumbnail = `thumbnail.png`,
+   captions panel = upload `captions.<locale>.srt` and turn auto-captions OFF. Screenshot before clicking Post; stop and ask if the UI differs from expectations.
+4. After posting: report the post URL, then ask whether to archive (section 10). Do not retry blindly on a failed upload (risk of duplicate posts).
+5. Go slow, no bulk posting, no repeated rapid retries (Meta may flag automation). The UI changes often: expect to re-read the page, not replay a fixed script.
+
+Planned, not built (route A): Facebook **Page** + Graph API Page token in `~/.config/my_workflow/.env` (FB_PAGE_ID, FB_PAGE_TOKEN, FB_APP_ID, FB_APP_SECRET, chmod 600,
+user creates the file) with `scripts/my_workflow/fb_publish.py` (dry-run token check first, then Reel upload + schedule). Only relevant if the user moves to a Page.

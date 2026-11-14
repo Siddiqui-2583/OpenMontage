@@ -39,4 +39,9 @@ if words.is_file():
     make_srt.build(words, out, a.locale)
 else:
     print("WARNING: no assets/captions_words.json, so no .srt was generated", file=sys.stderr)
+vids = sorted(out.glob("*.mp4"))
+if vids:  # warn-only QA (idea from kajisho5/ffmpeg-skill check.py, MIT); never blocks delivery
+    import subprocess
+    chk = Path(__file__).resolve().parent / "delivery_check.py"
+    subprocess.run([sys.executable, str(chk), str(vids[0])], check=False)
 print(out)

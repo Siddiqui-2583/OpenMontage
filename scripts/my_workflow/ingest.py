@@ -30,6 +30,25 @@ def probe(p: Path) -> dict:
             "size_bytes": int(j["format"]["size"])}
 
 
+def detect_bars(p: Path, w: int, h: int) -> dict | None:
+    """Black-bar check (idea from kajisho5/ffmpeg-skill cropdetect, MIT; own implementation).
+    Samples 1 frame/s, takes the most common crop rectangle. Suggestion only: a dark room can fool it, so it
+    is reported only when every side is either ~0 px or >= 6 px, and the user/agent confirms with a still."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(p), "-an", "-vf",
+                        "fps=1,cropdetect=limit=24:round=2:reset=0", "-f", "null", "-"],
+                       capture_output=True, text=True, errors="replace")
+    found = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", r.stderr)
+    if not found:
+        return None
+    cw, ch, x, y = (int(v) for v in max(set(found), key=found.count))
+    bars = {"left": x, "top": y, "right": w - cw - x, "bottom": h - ch - y}
+    if max(bars.values()) < 6:
+        return None
+    if any(0 < v < 6 for v in bars.values()):
+        return {"bars_px": bars, "suggest": None, "note": "uneven small bars, check a still before cropping"}
+    return {"bars_px": bars, "suggest": f"crop={cw}:{ch}:{x}:{y}"}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("name")
@@ -52,7 +71,12 @@ def main() -> int:
             notes = f.read_text(encoding="utf-8", errors="replace")
         elif f.suffix.lower() in VIDEO and f.parent == src:
             shutil.copy2(f, raw / f.name)
-            videos.append({"file": f"assets/video/raw/{f.name}", **probe(f)})
+            info = probe(f)
+            bars = detect_bars(f, info["width"], info["height"])
+            videos.append({"file": f"assets/video/raw/{f.name}", **info, **({"black_bars": bars} if bars else {})})
+            if bars:
+                print(f"BLACK BARS in {f.name}: {bars['bars_px']} -> suggested ffmpeg filter: {bars['suggest']}, then scale to target size. "
+                      "Check a still before applying.", file=sys.stderr)
         else:
             rel = f.relative_to(src)
             dest = usr / rel
